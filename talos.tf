@@ -33,9 +33,7 @@ locals {
       local.control_plane_private_ipv4_list[0]
     )
   )
-  # Define a safe default endpoint for when no control planes exist
-  dummy_cluster_endpoint        = "https://dummy.local:${local.api_port_k8s}"
-  cluster_endpoint_url_internal = var.control_plane_count > 0 ? "https://${local.cluster_endpoint_internal}:${local.api_port_k8s}" : local.dummy_cluster_endpoint
+  cluster_endpoint_url_internal = "https://${local.cluster_endpoint_internal}:${local.api_port_k8s}"
 
   // ************
   cert_SANs = distinct(
@@ -89,7 +87,6 @@ data "talos_machine_configuration" "worker" {
 }
 
 resource "talos_machine_bootstrap" "this" {
-  count                = var.control_plane_count > 0 ? 1 : 0
   client_configuration = talos_machine_secrets.this.client_configuration
   endpoint             = local.control_plane_public_ipv4_list[0]
   node                 = local.control_plane_public_ipv4_list[0]
@@ -120,7 +117,6 @@ data "talos_client_configuration" "this" {
 }
 
 resource "talos_cluster_kubeconfig" "this" {
-  count                = var.control_plane_count > 0 ? 1 : 0
   client_configuration = talos_machine_secrets.this.client_configuration
   node                 = local.control_plane_public_ipv4_list[0]
   depends_on = [
@@ -136,15 +132,15 @@ locals {
     "unknown"
   )
   kubeconfig = replace(
-    can(talos_cluster_kubeconfig.this[0].kubeconfig_raw) ? talos_cluster_kubeconfig.this[0].kubeconfig_raw : "",
+    can(talos_cluster_kubeconfig.this.kubeconfig_raw) ? talos_cluster_kubeconfig.this.kubeconfig_raw : "",
     local.cluster_endpoint_url_internal, "https://${local.kubeconfig_host}:${local.api_port_k8s}"
   )
 
   kubeconfig_data = {
     host                   = "https://${local.best_public_ipv4}:${local.api_port_k8s}"
     cluster_name           = var.cluster_name
-    cluster_ca_certificate = var.control_plane_count > 0 ? base64decode(talos_cluster_kubeconfig.this[0].kubernetes_client_configuration.ca_certificate) : tls_self_signed_cert.dummy_ca[0].cert_pem
-    client_certificate     = var.control_plane_count > 0 ? base64decode(talos_cluster_kubeconfig.this[0].kubernetes_client_configuration.client_certificate) : tls_locally_signed_cert.dummy_issuer[0].cert_pem
-    client_key             = var.control_plane_count > 0 ? base64decode(talos_cluster_kubeconfig.this[0].kubernetes_client_configuration.client_key) : tls_private_key.dummy_issuer[0].private_key_pem
+    cluster_ca_certificate = base64decode(talos_cluster_kubeconfig.this.kubernetes_client_configuration.ca_certificate)
+    client_certificate     = base64decode(talos_cluster_kubeconfig.this.kubernetes_client_configuration.client_certificate)
+    client_key             = base64decode(talos_cluster_kubeconfig.this.kubernetes_client_configuration.client_key)
   }
 }

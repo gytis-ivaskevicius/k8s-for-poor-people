@@ -149,7 +149,7 @@ resource "helm_release" "autoscaler" {
     extraEnvSecrets = {
       HCLOUD_TOKEN = {
         name = "hetzner-api-token"
-        key = "token"
+        key  = "token"
       }
     }
 

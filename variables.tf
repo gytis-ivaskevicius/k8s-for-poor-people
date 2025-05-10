@@ -185,6 +185,7 @@ variable "ssh_public_key" {
 
 variable "control_plane_count" {
   type        = number
+  default     = 3
   description = "The number of control plane nodes to create. Must be an odd number. Maximum 5."
   validation {
     condition     = var.control_plane_count % 2 == 1 && var.control_plane_count <= 5

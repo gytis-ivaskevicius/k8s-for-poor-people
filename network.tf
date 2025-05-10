@@ -48,7 +48,7 @@ data "hcloud_floating_ip" "control_plane_ipv4" {
 }
 
 resource "hcloud_floating_ip_assignment" "this" {
-  count          = var.control_plane_count > 0 && local.create_floating_ip ? 1 : 0
+  count          = local.create_floating_ip ? 1 : 0
   floating_ip_id = data.hcloud_floating_ip.control_plane_ipv4[0].id
   server_id      = hcloud_server.control_planes[local.control_planes[0].name].id
   depends_on = [
@@ -57,9 +57,8 @@ resource "hcloud_floating_ip_assignment" "this" {
 }
 
 resource "hcloud_primary_ip" "control_plane_ipv4" {
-  count = var.control_plane_count > 0 ? var.control_plane_count : 1
-  # If control_plane_count is 0, we still need to create a primary IP for debugging purposes
-  name          = "${local.cluster_prefix}control-plane-${count.index + 1}-ipv4"
+  count = var.control_plane_count
+  name          = "${local.cluster_prefix}control-plane-${count.index}-ipv4"
   datacenter    = data.hcloud_datacenter.this.name
   type          = "ipv4"
   assignee_type = "server"
@@ -71,8 +70,8 @@ resource "hcloud_primary_ip" "control_plane_ipv4" {
 }
 
 resource "hcloud_primary_ip" "control_plane_ipv6" {
-  count         = var.enable_ipv6 ? var.control_plane_count > 0 ? var.control_plane_count : 1 : 0
-  name          = "${local.cluster_prefix}control-plane-${count.index + 1}-ipv6"
+  count         = var.enable_ipv6 ? var.control_plane_count : 0
+  name          = "${local.cluster_prefix}control-plane-${count.index}-ipv6"
   datacenter    = data.hcloud_datacenter.this.name
   type          = "ipv6"
   assignee_type = "server"
@@ -136,7 +135,7 @@ locals {
   # - The special private IP address 172.31.1.1. This IP address is being used as a default gateway of your server's public network interface.
   control_plane_private_vip_ipv4 = cidrhost(hcloud_network_subnet.nodes.ip_range, 100)
   control_plane_private_ipv4_list = [
-    for index in range(var.control_plane_count > 0 ? var.control_plane_count : 1) : cidrhost(hcloud_network_subnet.nodes.ip_range, index + 101)
+    for index in range(var.control_plane_count) : cidrhost(hcloud_network_subnet.nodes.ip_range, index + 101)
   ]
   worker_private_ipv4_list = [
     for index in range(var.worker_count > 0 ? var.worker_count : 1) : cidrhost(hcloud_network_subnet.nodes.ip_range, index + 201)
