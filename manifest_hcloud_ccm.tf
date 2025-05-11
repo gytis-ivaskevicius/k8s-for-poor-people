@@ -22,6 +22,17 @@ resource "helm_release" "hcloud_ccm" {
       enabled     = true
       clusterCIDR = var.pod_ipv4_cidr
     }
+    env = {
+      HCLOUD_LOAD_BALANCERS_USE_PRIVATE_IP = {
+        value = "true"
+      }
+      HCLOUD_LOAD_BALANCERS_ENABLED = {
+        value = "true"
+      }
+      HCLOUD_LOAD_BALANCERS_DISABLE_PRIVATE_INGRESS = {
+        value = "true"
+      }
+    }
   }, var.hcloud_ccm.values))]
 
   depends_on = [data.http.talos_health]
