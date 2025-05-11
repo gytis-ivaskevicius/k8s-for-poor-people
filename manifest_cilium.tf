@@ -29,6 +29,11 @@ resource "helm_release" "cilium" {
   values = [yamlencode(merge({
     operator = {
       replicas = length(var.control_planes) > 1 ? 2 : 1
+      prometheus = {
+        serviceMonitor = {
+          enabled = var.cilium.enable_service_monitors
+        }
+      }
     }
     ipam = {
       mode = "kubernetes"
@@ -67,13 +72,6 @@ resource "helm_release" "cilium" {
       serviceMonitor = {
         enabled        = var.cilium.enable_service_monitors
         trustCRDsExist = var.cilium.enable_service_monitors
-      }
-    }
-    operator = {
-      prometheus = {
-        serviceMonitor = {
-          enabled = var.cilium.enable_service_monitors
-        }
       }
     }
   }, var.cilium.values))]
