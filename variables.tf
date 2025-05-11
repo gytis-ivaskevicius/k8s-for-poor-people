@@ -200,19 +200,6 @@ variable "control_plane_server_type" {
   }
 }
 
-variable "workers" {
-  description = "Workers definition"
-  type = map(object({
-    server_type  = string
-    datacenter   = string
-    labels       = optional(map(string), {})
-    count        = optional(number, 1)
-    ipv4_enabled = optional(bool, true)
-    ipv6_enabled = optional(bool, false)
-  }))
-  default = {}
-}
-
 variable "disable_x86" {
   type        = bool
   default     = false

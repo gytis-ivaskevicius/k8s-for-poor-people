@@ -73,18 +73,6 @@ data "talos_machine_configuration" "control_plane" {
   examples           = false
 }
 
-data "talos_machine_configuration" "worker" {
-  for_each           = { for worker in local.workers : worker.name => worker }
-  talos_version      = var.talos_version
-  cluster_name       = var.cluster_name
-  cluster_endpoint   = local.cluster_endpoint_url_internal
-  kubernetes_version = var.kubernetes_version
-  machine_type       = "worker"
-  machine_secrets    = talos_machine_secrets.this.machine_secrets
-  config_patches     = concat([yamlencode(local.worker_yaml[each.value.name])], var.talos_worker_extra_config_patches)
-  docs               = false
-  examples           = false
-}
 
 resource "talos_machine_bootstrap" "this" {
   client_configuration = talos_machine_secrets.this.client_configuration

@@ -6,10 +6,3 @@ resource "hcloud_placement_group" "control_plane" {
   }
 }
 
-resource "hcloud_placement_group" "worker" {
-  name = "${local.cluster_prefix}worker"
-  type = "spread"
-  labels = {
-    "cluster" = var.cluster_name
-  }
-}
