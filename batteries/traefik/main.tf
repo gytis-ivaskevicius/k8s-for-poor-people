@@ -94,7 +94,10 @@ resource "helm_release" "traefik" {
       }
 
       persistence = {
-        enabled = false
+        enabled = true
+        storageClass = "hcloud-volumes"
+        accessMode   = "ReadWriteOnce"
+        size         = "1Gi"
       }
 
       certificatesResolvers = {
