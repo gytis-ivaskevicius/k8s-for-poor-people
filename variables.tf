@@ -185,12 +185,6 @@ variable "kernel_modules_to_load" {
   description = "List of kernel modules to load."
 }
 
-variable "talos_worker_extra_config_patches" {
-  type        = list(string)
-  default     = []
-  description = "List of additional YAML configuration patches to apply to the Talos machine configuration for worker nodes."
-}
-
 variable "registries" {
   type = object({
     mirrors = optional(map(object({

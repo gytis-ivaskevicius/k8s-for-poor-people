@@ -1,53 +1,56 @@
+
 variable "autoscaler_nodepools" {
-  description = "Cluster autoscaler nodepools."
-  type = list(object({
-    name          = string
-    instance_type = string
-    region        = string
-    min_nodes     = number
-    max_nodes     = number
-    labels        = optional(map(string), {})
+  description = "Workers definition"
+  type = map(object({
+    server_type     = string
+    datacenter      = string
+    min_nodes       = number
+    max_nodes       = number
+    extra_user_data = optional(map(any))
+    labels          = optional(map(string), {})
     taints = optional(list(object({
       key    = string
       value  = string
       effect = string
     })), [])
   }))
-  default = []
+  default = {}
 }
 
 
 locals {
-
   cluster_config = {
     imagesForArch = {
       arm64 = var.disable_arm ? null : tostring(data.hcloud_image.arm[0].id)
       amd64 = var.disable_x86 ? null : tostring(data.hcloud_image.x86[0].id)
     }
     nodeConfigs = {
-      for index, nodePool in var.autoscaler_nodepools :
-      (nodePool.name) => {
-        cloudInit = data.talos_machine_configuration.autoscaler.machine_configuration
-        labels    = nodePool.labels
-        taints    = nodePool.taints
+      for np_name, np in var.autoscaler_nodepools :
+      np_name => {
+        cloudInit = data.talos_machine_configuration.autoscaler[np_name].machine_configuration
+        labels    = np.labels
+        taints    = np.taints
       }
     }
   }
 }
 
 data "talos_machine_configuration" "autoscaler" {
+  for_each = var.autoscaler_nodepools
+
   talos_version      = var.talos_version
   cluster_name       = var.cluster_name
   cluster_endpoint   = local.cluster_endpoint_url_internal
   kubernetes_version = var.kubernetes_version
   machine_type       = "worker"
   machine_secrets    = talos_machine_secrets.this.machine_secrets
-  config_patches     = concat([yamlencode(local.worker_yaml)], var.talos_worker_extra_config_patches)
+  config_patches     = [yamlencode(local.worker_yaml), yamlencode(each.value.extra_user_data)]
   docs               = false
   examples           = false
 }
 
 resource "kubernetes_secret" "hetzner_api_token" {
+  count = length(var.autoscaler_nodepools) > 0 ? 1 : 0
   metadata {
     name      = "hetzner-api-token"
     namespace = "kube-system"
@@ -59,7 +62,8 @@ resource "kubernetes_secret" "hetzner_api_token" {
 }
 
 resource "helm_release" "autoscaler" {
-  name = "autoscaler"
+  count = length(var.autoscaler_nodepools) > 0 ? 1 : 0
+  name  = "hetzner-cluster-autoscaler"
 
   repository = "https://kubernetes.github.io/autoscaler"
   chart      = "cluster-autoscaler"
@@ -85,13 +89,14 @@ resource "helm_release" "autoscaler" {
       HCLOUD_CLUSTER_CONFIG = base64encode(jsonencode(local.cluster_config))
     }
 
+
     autoscalingGroups = [
-      for np in var.autoscaler_nodepools : {
-        name         = np.name
+      for np_name, np in var.autoscaler_nodepools : {
+        name         = "${local.cluster_prefix}${np_name}"
         maxSize      = np.max_nodes
         minSize      = np.min_nodes
-        instanceType = np.instance_type
-        region       = np.region
+        instanceType = np.server_type
+        region       = np.datacenter
       }
     ]
   })]
