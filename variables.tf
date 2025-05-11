@@ -172,34 +172,6 @@ variable "talos_version" {
   description = "The version of talos features to use in generated machine configurations."
 }
 
-variable "control_plane_count" {
-  type        = number
-  default     = 3
-  description = "The number of control plane nodes to create. Must be an odd number. Maximum 5."
-  validation {
-    condition     = var.control_plane_count % 2 == 1 && var.control_plane_count <= 5
-    error_message = "control_plane_count must be an odd number and no more than 5."
-  }
-}
-
-variable "control_plane_server_type" {
-  type        = string
-  description = <<EOF
-    The server type to use for the control plane nodes.
-    Possible values: cx11, cx21, cx22, cx31, cx32, cx41, cx42, cx51, cx52, cpx11, cpx21, cpx31,
-    cpx41, cpx51, cax11, cax21, cax31, cax41, ccx13, ccx23, ccx33, ccx43, ccx53, ccx63
-  EOF
-  validation {
-    condition = contains([
-      "cx11", "cx21", "cx22", "cx31", "cx32", "cx41", "cx42", "cx51", "cx52",
-      "cpx11", "cpx21", "cpx31", "cpx41", "cpx51",
-      "cax11", "cax21", "cax31", "cax41",
-      "ccx13", "ccx23", "ccx33", "ccx43", "ccx53", "ccx63"
-    ], var.control_plane_server_type)
-    error_message = "Invalid control plane server type."
-  }
-}
-
 variable "disable_x86" {
   type        = bool
   default     = false

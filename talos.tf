@@ -60,20 +60,6 @@ locals {
   ] : []
 }
 
-data "talos_machine_configuration" "control_plane" {
-  for_each           = { for control_plane in local.control_planes : control_plane.name => control_plane }
-  talos_version      = var.talos_version
-  cluster_name       = var.cluster_name
-  cluster_endpoint   = local.cluster_endpoint_url_internal
-  kubernetes_version = var.kubernetes_version
-  machine_type       = "controlplane"
-  machine_secrets    = talos_machine_secrets.this.machine_secrets
-  config_patches     = concat([yamlencode(local.controlplane_yaml[each.value.name])], var.talos_control_plane_extra_config_patches)
-  docs               = false
-  examples           = false
-}
-
-
 resource "talos_machine_bootstrap" "this" {
   client_configuration = talos_machine_secrets.this.client_configuration
   endpoint             = local.control_plane_public_ipv4_list[0]

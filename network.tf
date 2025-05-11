@@ -57,29 +57,23 @@ resource "hcloud_floating_ip_assignment" "this" {
 }
 
 resource "hcloud_primary_ip" "control_plane_ipv4" {
-  count         = var.control_plane_count
-  name          = "${local.cluster_prefix}control-plane-${count.index}-ipv4"
-  datacenter    = data.hcloud_datacenter.this.name
+  for_each      = { for k, v in local.control_planes : v.name => v if v.ipv4_enabled }
+  name          = "${each.value.name}-ipv4"
+  datacenter    = each.value.datacenter
   type          = "ipv4"
   assignee_type = "server"
   auto_delete   = false
-  labels = {
-    "cluster" = var.cluster_name,
-    "role"    = "control-plane"
-  }
+  labels        = each.value.labels
 }
 
 resource "hcloud_primary_ip" "control_plane_ipv6" {
-  count         = var.enable_ipv6 ? var.control_plane_count : 0
-  name          = "${local.cluster_prefix}control-plane-${count.index}-ipv6"
-  datacenter    = data.hcloud_datacenter.this.name
+  for_each      = { for k, v in local.control_planes : v.name => v if v.ipv6_enabled }
+  name          = "${each.value.name}-ipv6"
+  datacenter    = each.value.datacenter
   type          = "ipv6"
   assignee_type = "server"
   auto_delete   = false
-  labels = {
-    "cluster" = var.cluster_name,
-    "role"    = "control-plane"
-  }
+  labels        = each.value.labels
 }
 
 resource "hcloud_primary_ip" "worker_ipv4" {
@@ -129,6 +123,6 @@ locals {
   # - The special private IP address 172.31.1.1. This IP address is being used as a default gateway of your server's public network interface.
   control_plane_private_vip_ipv4 = cidrhost(hcloud_network_subnet.nodes.ip_range, 100)
   control_plane_private_ipv4_list = [
-    for index in range(var.control_plane_count) : cidrhost(hcloud_network_subnet.nodes.ip_range, index + 101)
+    for index in range(length(local.control_planes)) : cidrhost(hcloud_network_subnet.nodes.ip_range, index + 101)
   ]
 }
