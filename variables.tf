@@ -63,33 +63,6 @@ variable "output_mode_config_cluster_endpoint" {
 }
 
 # Network
-variable "enable_floating_ip" {
-  type        = bool
-  default     = false
-  description = "If true, a floating IP will be created and assigned to the control plane nodes."
-}
-
-variable "enable_alias_ip" {
-  type        = bool
-  default     = true
-  description = <<EOF
-    If true, a private alias IP (defaulting to the .100 address within `node_ipv4_cidr`) will be configured on the control plane nodes.
-    This enables a stable internal IP for the Kubernetes API server, reachable via `kube.[cluster_domain]`.
-    The module automatically configures `/etc/hosts` on nodes to resolve `kube.[cluster_domain]` to this alias IP.
-  EOF
-}
-
-variable "floating_ip" {
-  type = object({
-    id = number,
-  })
-  default     = null
-  description = <<EOF
-    The Floating IP (ID) to use for the control plane nodes.
-    If null (default), a new floating IP will be created.
-    (using object because of https://github.com/hashicorp/terraform/issues/26755)
-  EOF
-}
 
 variable "enable_ipv6" {
   type        = bool
@@ -198,50 +171,6 @@ variable "registries" {
 }
 
 # Deployments
-variable "cilium_version" {
-  type        = string
-  default     = "1.16.2"
-  description = <<EOF
-    The version of Cilium to deploy. If not set, the `1.16.0` version will be used.
-    Needs to be compatible with the `kubernetes_version`: https://docs.cilium.io/en/stable/network/kubernetes/compatibility/
-  EOF
-}
-
-variable "cilium_values" {
-  type        = list(string)
-  default     = null
-  description = <<EOF
-    The values.yaml file to use for the Cilium Helm chart.
-    If null (default), the default values will be used.
-    Otherwise, the provided values will be used.
-    Example:
-    ```
-    cilium_values  = [templatefile("cilium/values.yaml", {})]
-    ```
-  EOF
-}
-
-variable "cilium_enable_encryption" {
-  type        = bool
-  default     = false
-  description = "Enable transparent network encryption."
-}
-
-variable "cilium_enable_service_monitors" {
-  type        = bool
-  default     = false
-  description = <<EOF
-    If true, the service monitors for Prometheus will be enabled.
-    Service Monitor requires monitoring.coreos.com/v1 CRDs.
-    You can use the deploy_prometheus_operator_crds variable to deploy them.
-  EOF
-}
-
-variable "deploy_prometheus_operator_crds" {
-  type        = bool
-  default     = false
-  description = "If true, the Prometheus Operator CRDs will be deployed."
-}
 
 variable "hcloud_ccm_version" {
   type        = string

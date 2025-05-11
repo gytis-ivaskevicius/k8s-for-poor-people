@@ -1,3 +1,49 @@
+variable "cilium_version" {
+  type        = string
+  default     = "1.16.2"
+  description = <<EOF
+    The version of Cilium to deploy. If not set, the `1.16.0` version will be used.
+    Needs to be compatible with the `kubernetes_version`: https://docs.cilium.io/en/stable/network/kubernetes/compatibility/
+  EOF
+}
+
+variable "cilium_values" {
+  type        = list(string)
+  default     = null
+  description = <<EOF
+    The values.yaml file to use for the Cilium Helm chart.
+    If null (default), the default values will be used.
+    Otherwise, the provided values will be used.
+    Example:
+    ```
+    cilium_values  = [templatefile("cilium/values.yaml", {})]
+    ```
+  EOF
+}
+
+variable "cilium_enable_encryption" {
+  type        = bool
+  default     = false
+  description = "Enable transparent network encryption."
+}
+
+variable "cilium_enable_service_monitors" {
+  type        = bool
+  default     = false
+  description = <<EOF
+    If true, the service monitors for Prometheus will be enabled.
+    Service Monitor requires monitoring.coreos.com/v1 CRDs.
+    You can use the deploy_prometheus_operator_crds variable to deploy them.
+  EOF
+}
+
+variable "deploy_prometheus_operator_crds" {
+  type        = bool
+  default     = false
+  description = "If true, the Prometheus Operator CRDs will be deployed."
+}
+
+
 data "helm_template" "cilium_default" {
   count     = var.cilium_values == null ? 1 : 0
   name      = "cilium"

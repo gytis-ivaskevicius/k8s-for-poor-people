@@ -22,6 +22,34 @@ variable "service_ipv4_cidr" {
   default     = "10.0.8.0/21"
 }
 
+variable "enable_floating_ip" {
+  type        = bool
+  default     = false
+  description = "If true, a floating IP will be created and assigned to the control plane nodes."
+}
+
+variable "enable_alias_ip" {
+  type        = bool
+  default     = true
+  description = <<EOF
+    If true, a private alias IP (defaulting to the .100 address within `node_ipv4_cidr`) will be configured on the control plane nodes.
+    This enables a stable internal IP for the Kubernetes API server, reachable via `kube.[cluster_domain]`.
+    The module automatically configures `/etc/hosts` on nodes to resolve `kube.[cluster_domain]` to this alias IP.
+  EOF
+}
+
+variable "floating_ip" {
+  type = object({
+    id = number,
+  })
+  default     = null
+  description = <<EOF
+    The Floating IP (ID) to use for the control plane nodes.
+    If null (default), a new floating IP will be created.
+    (using object because of https://github.com/hashicorp/terraform/issues/26755)
+  EOF
+}
+
 locals {
   # https://github.com/hetznercloud/hcloud-cloud-controller-manager/blob/main/docs/deploy_with_networks.md#considerations-on-the-ip-ranges
   node_ipv4_cidr_mask_size = split("/", var.node_ipv4_cidr)[1] # 24
