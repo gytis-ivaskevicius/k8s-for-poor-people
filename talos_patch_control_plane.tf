@@ -1,3 +1,9 @@
+variable "allow_scheduling_on_control_planes" {
+  type        = bool
+  default     = true
+  description = "If true, the control plane nodes will be allowed to schedule pods."
+}
+
 locals {
   controlplane_yaml = {
     for control_plane in local.control_planes : control_plane.name => {
@@ -90,7 +96,7 @@ locals {
         registries = var.registries
       }
       cluster = {
-        allowSchedulingOnControlPlanes = var.worker_count <= 0
+        allowSchedulingOnControlPlanes = var.allow_scheduling_on_control_planes
         network = {
           dnsDomain = var.cluster_domain
           podSubnets = [

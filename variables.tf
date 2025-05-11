@@ -172,17 +172,6 @@ variable "talos_version" {
   description = "The version of talos features to use in generated machine configurations."
 }
 
-variable "ssh_public_key" {
-  description = <<EOF
-    The public key to be set in the servers. It is not used in any way.
-    If you don't set it, a dummy key will be generated and used.
-    Unfortunately, it is still required, otherwise the Hetzner will sen E-Mails with login credentials.
-  EOF
-  type        = string
-  default     = null
-  sensitive   = true
-}
-
 variable "control_plane_count" {
   type        = number
   default     = 3
@@ -211,33 +200,17 @@ variable "control_plane_server_type" {
   }
 }
 
-variable "worker_count" {
-  type        = number
-  default     = 0
-  description = "The number of worker nodes to create. Maximum 99."
-  validation {
-    condition     = var.worker_count <= 99
-    error_message = "The number of worker nodes must be less than 100."
-  }
-}
-
-variable "worker_server_type" {
-  type        = string
-  default     = "cx11"
-  description = <<EOF
-    The server type to use for the worker nodes.
-    Possible values: cx11, cx21, cx22, cx31, cx32, cx41, cx42, cx51, cx52, cpx11, cpx21, cpx31,
-    cpx41, cpx51, cax11, cax21, cax31, cax41, ccx13, ccx23, ccx33, ccx43, ccx53, ccx63
-  EOF
-  validation {
-    condition = contains([
-      "cx11", "cx21", "cx22", "cx31", "cx32", "cx41", "cx42", "cx51", "cx52",
-      "cpx11", "cpx21", "cpx31", "cpx41", "cpx51",
-      "cax11", "cax21", "cax31", "cax41",
-      "ccx13", "ccx23", "ccx33", "ccx43", "ccx53", "ccx63"
-    ], var.worker_server_type)
-    error_message = "Invalid worker server type."
-  }
+variable "workers" {
+  description = "Workers definition"
+  type = map(object({
+    server_type  = string
+    datacenter   = string
+    labels       = optional(map(string), {})
+    count        = optional(number, 1)
+    ipv4_enabled = optional(bool, true)
+    ipv6_enabled = optional(bool, false)
+  }))
+  default = {}
 }
 
 variable "disable_x86" {
