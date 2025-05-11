@@ -103,18 +103,6 @@ locals {
   control_plane_public_ipv6_list = [
     for ipv6 in hcloud_primary_ip.control_plane_ipv6 : ipv6.ip_address
   ]
-  control_plane_public_ipv6_subnet_list = [
-    for ipv6 in hcloud_primary_ip.control_plane_ipv6 : ipv6.ip_network
-  ]
-  worker_public_ipv4_list = [
-    for ipv4 in hcloud_primary_ip.worker_ipv4 : ipv4.ip_address
-  ]
-  worker_public_ipv6_list = [
-    for ipv6 in hcloud_primary_ip.worker_ipv6 : ipv6.ip_address
-  ]
-  worker_public_ipv6_subnet_list = [
-    for ipv6 in hcloud_primary_ip.worker_ipv6 : ipv6.ip_network
-  ]
 
   # https://docs.hetzner.com/cloud/networks/faq/#are-any-ip-addresses-reserved
   # We may not use th following IP addresses:

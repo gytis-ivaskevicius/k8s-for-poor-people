@@ -26,7 +26,7 @@ locals {
     }
     nodeConfigs = {
       for index, nodePool in var.autoscaler_nodepools :
-      ("${nodePool.name}") => {
+      (nodePool.name) => {
         cloudInit = data.talos_machine_configuration.autoscaler.machine_configuration
         labels    = nodePool.labels
         taints    = nodePool.taints
