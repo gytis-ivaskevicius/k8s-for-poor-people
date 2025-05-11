@@ -3,23 +3,23 @@ variable "hcloud_ccm" {
   type = object({
     enabled = optional(bool, true)
     version = optional(string, null)
-    values = optional(map(any))
+    values  = optional(map(any))
   })
   default = {}
 }
 
 resource "helm_release" "hcloud_ccm" {
-  count = var.hcloud_ccm.enabled ? 1 : 0
+  count     = var.hcloud_ccm.enabled ? 1 : 0
   name      = "hcloud-cloud-controller-manager"
   namespace = "kube-system"
 
-  repository   = "https://charts.hetzner.cloud"
-  chart        = "hcloud-cloud-controller-manager"
-  version      = var.hcloud_ccm.version
+  repository = "https://charts.hetzner.cloud"
+  chart      = "hcloud-cloud-controller-manager"
+  version    = var.hcloud_ccm.version
 
   values = [yamlencode(merge({
     networking = {
-      enabled = true
+      enabled     = true
       clusterCIDR = var.pod_ipv4_cidr
     }
   }, var.hcloud_ccm.values))]
