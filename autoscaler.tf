@@ -33,80 +33,6 @@ locals {
       }
     }
   }
-
-  worker_patches = {
-    machine = {
-      install = {
-        image = "ghcr.io/siderolabs/installer:${var.talos_version}"
-        extraKernelArgs = [
-          "ipv6.disable=${var.enable_ipv6 ? 0 : 1}",
-        ]
-      }
-      certSANs = local.cert_SANs
-      kubelet = {
-        extraArgs = merge(
-          {
-            "cloud-provider"             = "external"
-            "rotate-server-certificates" = true
-          },
-          var.kubelet_extra_args
-        )
-        nodeIP = {
-          validSubnets = [
-            local.node_ipv4_cidr
-          ]
-        }
-      }
-      network = {
-        extraHostEntries = local.extra_host_entries
-        kubespan = {
-          enabled = var.enable_kube_span
-          advertiseKubernetesNetworks : false # Disabled because of cilium
-          mtu : 1370                          # Hcloud has a MTU of 1450 (KubeSpanMTU = UnderlyingMTU - 80)
-        }
-      }
-      kernel = {
-        modules = var.kernel_modules_to_load
-      }
-      sysctls = merge(
-        {
-          "net.core.somaxconn"          = "65535"
-          "net.core.netdev_max_backlog" = "4096"
-        },
-        var.sysctls_extra_args
-      )
-      features = {
-        hostDNS = {
-          enabled              = true
-          forwardKubeDNSToHost = true
-          resolveMemberNames   = true
-        }
-      }
-      time = {
-        servers = [
-          "ntp1.hetzner.de",
-          "ntp2.hetzner.com",
-          "ntp3.hetzner.net",
-          "time.cloudflare.com"
-        ]
-      }
-      registries = var.registries
-    }
-    cluster = {
-      network = {
-        dnsDomain = var.cluster_domain
-        podSubnets = [
-          local.pod_ipv4_cidr
-        ]
-        serviceSubnets = [
-          local.service_ipv4_cidr
-        ]
-        cni = {
-          name = "none"
-        }
-      }
-    }
-  }
 }
 
 data "talos_machine_configuration" "autoscaler" {
@@ -116,7 +42,7 @@ data "talos_machine_configuration" "autoscaler" {
   kubernetes_version = var.kubernetes_version
   machine_type       = "worker"
   machine_secrets    = talos_machine_secrets.this.machine_secrets
-  config_patches     = concat([yamlencode(local.worker_patches)], var.talos_worker_extra_config_patches)
+  config_patches     = concat([yamlencode(local.worker_yaml)], var.talos_worker_extra_config_patches)
   docs               = false
   examples           = false
 }
