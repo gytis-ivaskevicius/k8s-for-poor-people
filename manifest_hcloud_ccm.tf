@@ -1,30 +1,29 @@
-data "helm_template" "hcloud_ccm" {
+variable "hcloud_ccm" {
+  description = "Hetzner Cloud Controller Manager"
+  type = object({
+    enabled = optional(bool, true)
+    version = optional(string, null)
+    values = optional(map(any))
+  })
+  default = {}
+}
+
+resource "helm_release" "hcloud_ccm" {
+  count = var.hcloud_ccm.enabled ? 1 : 0
   name      = "hcloud-cloud-controller-manager"
   namespace = "kube-system"
 
   repository   = "https://charts.hetzner.cloud"
   chart        = "hcloud-cloud-controller-manager"
-  version      = var.hcloud_ccm_version
-  kube_version = var.kubernetes_version
+  version      = var.hcloud_ccm.version
 
-  set {
-    name  = "networking.enabled"
-    value = "true"
-  }
+  values = [yamlencode(merge({
+    networking = {
+      enabled = true
+      clusterCIDR = var.pod_ipv4_cidr
+    }
+  }, var.hcloud_ccm.values))]
 
-  set {
-    name  = "networking.clusterCIDR"
-    value = var.pod_ipv4_cidr
-  }
-}
-
-data "kubectl_file_documents" "hcloud_ccm" {
-  content = data.helm_template.hcloud_ccm.manifest
-}
-
-resource "kubectl_manifest" "apply_hcloud_ccm" {
-  for_each   = data.kubectl_file_documents.hcloud_ccm.manifests
-  yaml_body  = each.value
-  apply_only = true
   depends_on = [data.http.talos_health]
 }
+
