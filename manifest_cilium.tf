@@ -10,7 +10,7 @@ data "helm_template" "cilium_default" {
 
   set {
     name  = "operator.replicas"
-    value = var.control_plane_count > 1 ? 2 : 1
+    value = length(var.control_planes) > 1 ? 2 : 1
   }
   set {
     name  = "ipam.mode"

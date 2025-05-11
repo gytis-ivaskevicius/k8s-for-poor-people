@@ -1,37 +1,46 @@
-# Retrieve the public IP address of the current machine if the firewall should be opened for the current IP
-data "http" "personal_ipv4" {
-  count = var.firewall_use_current_ip ? 1 : 0
-  url   = "https://ipv4.icanhazip.com"
+
+variable "extra_firewall_rules" {
+  type        = list(any)
+  default     = []
+  description = "Additional firewall rules to apply to the cluster."
 }
 
-data "http" "personal_ipv6" {
-  count = var.firewall_use_current_ip ? 1 : 0
-  url   = "https://ipv6.icanhazip.com"
+variable "firewall_kube_api_source" {
+  type        = list(string)
+  default     = null
+  description = <<EOF
+    Source networks that have Kube API access to the servers.
+    If null (default), the all traffic is blocked.
+  EOF
+}
+
+variable "firewall_talos_api_source" {
+  type        = list(string)
+  default     = null
+  description = <<EOF
+    Source networks that have Talos API access to the servers.
+    If null (default), the all traffic is blocked.
+  EOF
 }
 
 locals {
-  current_ips = var.firewall_use_current_ip ? [
-    "${chomp(data.http.personal_ipv4[0].response_body)}/32",
-    "${chomp(data.http.personal_ipv6[0].response_body)}/128",
-  ] : []
-
   base_firewall_rules = concat(
-    var.firewall_kube_api_source == null && !var.firewall_use_current_ip ? [] : [
+    var.firewall_kube_api_source == null ? [] : [
       {
         description = "Allow Incoming Requests to Kube API Server"
         direction   = "in"
         protocol    = "tcp"
         port        = "6443"
-        source_ips  = var.firewall_kube_api_source != null ? var.firewall_kube_api_source : local.current_ips
+        source_ips  = var.firewall_kube_api_source
       }
     ],
-    var.firewall_talos_api_source == null && !var.firewall_use_current_ip ? [] : [
+    var.firewall_talos_api_source == null ? [] : [
       {
         description = "Allow Incoming Requests to Talos API Server"
         direction   = "in"
         protocol    = "tcp"
         port        = "50000"
-        source_ips  = var.firewall_talos_api_source != null ? var.firewall_talos_api_source : local.current_ips
+        source_ips  = var.firewall_talos_api_source
       }
     ],
   )
@@ -39,7 +48,7 @@ locals {
   # create a new firewall list based on base_firewall_rules but with direction-protocol-port as key
   # this is needed to avoid duplicate rules
   firewall_rules = {
-    for rule in local.base_firewall_rules :
+    for rule in concat(local.base_firewall_rules, var.extra_firewall_rules) :
     format("%s-%s-%s",
       lookup(rule, "direction", "null"),
       lookup(rule, "protocol", "null"),
@@ -47,21 +56,7 @@ locals {
     ) => rule
   }
 
-  # do the same for var.extra_firewall_rules
-  extra_firewall_rules = {
-    for rule in var.extra_firewall_rules :
-    format("%s-%s-%s",
-      lookup(rule, "direction", "null"),
-      lookup(rule, "protocol", "null"),
-      lookup(rule, "port", "null")
-    ) => rule
-  }
-
-  # merge the two lists
-  firewall_rules_merged = merge(local.firewall_rules, local.extra_firewall_rules)
-
-  # convert the merged list back to a list
-  firewall_rules_list = values(local.firewall_rules_merged)
+  firewall_rules_list = values(local.firewall_rules)
 }
 
 resource "hcloud_firewall" "this" {
