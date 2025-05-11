@@ -22,7 +22,7 @@ data "helm_template" "cilium_default" {
   }
   set {
     name  = "ipv4NativeRoutingCIDR"
-    value = local.pod_ipv4_cidr
+    value = var.pod_ipv4_cidr
   }
   set {
     name  = "kubeProxyReplacement"

@@ -14,7 +14,7 @@ data "helm_template" "hcloud_ccm" {
 
   set {
     name  = "networking.clusterCIDR"
-    value = local.pod_ipv4_cidr
+    value = var.pod_ipv4_cidr
   }
 }
 

@@ -32,7 +32,7 @@ locals {
         )
         nodeIP = {
           validSubnets = [
-            local.node_ipv4_cidr
+            var.node_ipv4_cidr
           ]
         }
       }
@@ -75,10 +75,10 @@ locals {
       network = {
         dnsDomain = var.cluster_domain
         podSubnets = [
-          local.pod_ipv4_cidr
+          var.pod_ipv4_cidr
         ]
         serviceSubnets = [
-          local.service_ipv4_cidr
+          var.service_ipv4_cidr
         ]
         cni = {
           name = "none"
