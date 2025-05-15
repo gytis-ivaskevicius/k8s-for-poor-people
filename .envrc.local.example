@@ -1,0 +1,2 @@
+export HCLOUD_TOKEN=
+export CLOUDFLARE_API_TOKEN=
