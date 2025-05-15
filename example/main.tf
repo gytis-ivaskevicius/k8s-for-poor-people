@@ -77,7 +77,7 @@ module "ingress" {
     domain_filters = ["gytis.place"]
   }
   traefik = {
-    dashboard_domain = "dashboard.gytis.place"
+    dashboard_domain = "traefik.gytis.place"
     acme_email       = "me@gytis.io"
     lb_datacenter    = "fsn1"
     enable_dashboard = true
