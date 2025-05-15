@@ -16,5 +16,6 @@ resource "helm_release" "hcloud_csi" {
   chart      = "hcloud-csi"
   version    = var.hcloud_csi.version
   values     = [yamlencode(var.hcloud_csi.values)]
+  depends_on = [data.http.talos_health, helm_release.cilium]
 }
 

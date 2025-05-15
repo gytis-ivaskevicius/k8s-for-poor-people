@@ -35,6 +35,6 @@ resource "helm_release" "hcloud_ccm" {
     }
   }, var.hcloud_ccm.values))]
 
-  depends_on = [data.http.talos_health]
+  depends_on = [data.http.talos_health, helm_release.cilium]
 }
 

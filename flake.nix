@@ -43,7 +43,7 @@
             commands = [
               {
                 package = pkgs.writeShellScriptBin "tf-example" ''
-                  cd $PRJ_ROOT/tf-example ; tofu $@
+                  cd $PRJ_ROOT/example && tofu $@
                 '';
                 name = "tf-example";
                 help = "Run Terraform example";

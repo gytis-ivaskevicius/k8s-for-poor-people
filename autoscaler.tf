@@ -69,6 +69,7 @@ resource "helm_release" "autoscaler" {
   chart      = "cluster-autoscaler"
   namespace  = "kube-system"
   version    = "9.46.6"
+  depends_on = [data.http.talos_health, helm_release.cilium]
 
   values = [yamlencode({
     cloudProvider = "hetzner"

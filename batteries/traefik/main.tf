@@ -1,4 +1,5 @@
 terraform {
+  required_version = ">= 1.3.0"
   required_providers {
     helm = {
       source  = "hashicorp/helm"
@@ -19,7 +20,7 @@ variable "chart_version" {
 
 variable "enable_dashboard" {
   type        = bool
-  default     = false
+  default     = true
   description = "If true, the Traefik dashboard will be enabled."
 }
 
@@ -29,9 +30,37 @@ variable "values" {
   description = "Additional values to pass to the chart."
 }
 
+variable "cloudflare_api_token" {
+  type        = string
+  sensitive   = true
+  description = "Cloudflare API token"
+}
+
+variable "lb_datacenter" {
+  type        = string
+  description = "The datacenter of the load balancer"
+}
+
+variable "dashboard_domain" {
+  type        = string
+  description = "The domain of the dashboard"
+  default     = "traefik.example.com"
+}
+
+variable "acme_email" {
+  type        = string
+  description = "The email to use for Let's Encrypt"
+}
+
+variable "namespace" {
+  type        = string
+  default     = "traefik"
+  description = "The namespace to deploy Traefik into."
+}
+
 resource "helm_release" "traefik" {
   name             = "traefik"
-  namespace        = "traefik"
+  namespace        = var.namespace
   create_namespace = true
 
   repository = "https://traefik.github.io/charts"
@@ -40,26 +69,27 @@ resource "helm_release" "traefik" {
 
   values = [
     yamlencode(merge({
+      deployment = {
+        strategy = {
+          type = "Recreate"
+        }
+      }
 
       ports = {
         web = {
-          port     = 80
-            #redirections = {
-            #  entryPoint = {
-            #    to        = "websecure"
-            #    scheme    = "https"
-            #    permanent = true
-            #  }
-            #}
+          port = 80
         }
         websecure = {
-          port     = 443
+          port = 443
         }
       }
 
       service = {
         annotations = {
-          "load-balancer.hetzner.cloud/location" = "fsn1"
+          "external-dns.alpha.kubernetes.io/cloudflare-proxied"   = "true"
+          "external-dns.alpha.kubernetes.io/hostname"             = var.dashboard_domain
+          "load-balancer.hetzner.cloud/location"                  = var.lb_datacenter
+          "traefik.ingress.kubernetes.io/router.tls.certresolver" = "le"
         }
         ports = {
           web = {
@@ -72,15 +102,32 @@ resource "helm_release" "traefik" {
       }
 
       api = {
-        dashboard = true
+        dashboard = var.enable_dashboard
       }
 
 
       ingressRoute = {
         dashboard = {
-          enabled = var.enable_dashboard
+          enabled     = var.enable_dashboard
+          entryPoints = ["websecure"]
+          matchRule   = "Host(`${var.dashboard_domain}`)"
+          tls = {
+            enabled      = true
+            certResolver = "le"
+          }
         }
       }
+
+      envFrom = [
+        {
+          name = "CF_DNS_API_TOKEN"
+          secretRef = {
+            name = "cloudflare"
+            key  = "token"
+          }
+        }
+      ]
+
 
       securityContext = {
         capabilities = {
@@ -94,7 +141,7 @@ resource "helm_release" "traefik" {
       }
 
       persistence = {
-        enabled = true
+        enabled      = true
         storageClass = "hcloud-volumes"
         accessMode   = "ReadWriteOnce"
         size         = "1Gi"
@@ -103,26 +150,33 @@ resource "helm_release" "traefik" {
       certificatesResolvers = {
         le = {
           acme = {
-            email        = "me@gytis.io"
-            storage      = "/data/acme.json"
-            httpChallenge = {
-              entrypoint = "web"
+            email   = var.acme_email
+            storage = "/data/acme.json"
+            dnsChallenge = {
+              provider = "cloudflare"
             }
           }
         }
       }
 
-      #additionalArguments = [
-      #  "--providers.kubernetescrd.allowCrossNamespace=true"
-      #]
-
-      #priorityClassName = "system-cluster-critical"
-
-      #globalArguments = [
-      #  "--global.sendanonymoususage=false",
-      #  "--global.checknewversion=false"
-      #]
+      globalArguments = [
+        "--global.sendanonymoususage=false",
+        "--global.checknewversion=false"
+      ]
     }, var.values))
   ]
+}
+
+resource "kubernetes_secret" "cloudflare" {
+  metadata {
+    name      = "cloudflare"
+    namespace = var.namespace
+  }
+
+  type = "Opaque"
+
+  data = {
+    CF_DNS_API_TOKEN = var.cloudflare_api_token
+  }
 }
 
