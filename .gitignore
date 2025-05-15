@@ -7,4 +7,5 @@
 .direnv
 kubeconfig
 talosconfig
+example/.terraform.lock.hcl
 
