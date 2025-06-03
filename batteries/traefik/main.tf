@@ -41,12 +41,6 @@ variable "lb_datacenter" {
   description = "The datacenter of the load balancer"
 }
 
-variable "dashboard_domain" {
-  type        = string
-  description = "The domain of the dashboard"
-  default     = "traefik.example.com"
-}
-
 variable "acme_email" {
   type        = string
   description = "The email to use for Let's Encrypt"
@@ -75,29 +69,9 @@ resource "helm_release" "traefik" {
         }
       }
 
-      ports = {
-        web = {
-          port = 80
-        }
-        websecure = {
-          port = 443
-        }
-      }
-
       service = {
         annotations = {
-          "external-dns.alpha.kubernetes.io/cloudflare-proxied"   = "true"
-          "external-dns.alpha.kubernetes.io/hostname"             = var.dashboard_domain
-          "load-balancer.hetzner.cloud/location"                  = var.lb_datacenter
-          "traefik.ingress.kubernetes.io/router.tls.certresolver" = "le"
-        }
-        ports = {
-          web = {
-            port = 80
-          }
-          websecure = {
-            port = 443
-          }
+          "load-balancer.hetzner.cloud/location" = var.lb_datacenter
         }
       }
 
@@ -108,13 +82,7 @@ resource "helm_release" "traefik" {
 
       ingressRoute = {
         dashboard = {
-          enabled     = var.enable_dashboard
-          entryPoints = ["websecure"]
-          matchRule   = "Host(`${var.dashboard_domain}`)"
-          tls = {
-            enabled      = true
-            certResolver = "le"
-          }
+          enabled = var.enable_dashboard
         }
       }
 
@@ -131,13 +99,11 @@ resource "helm_release" "traefik" {
 
       securityContext = {
         capabilities = {
-          drop = ["ALL"]
-          add  = ["NET_BIND_SERVICE"]
+          add = ["NET_BIND_SERVICE"]
         }
-        readOnlyRootFilesystem = true
-        runAsGroup             = 0
-        runAsNonRoot           = false
-        runAsUser              = 0
+        runAsNonRoot = false
+        runAsGroup   = 0
+        runAsUser    = 0
       }
 
       persistence = {

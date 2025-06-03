@@ -288,15 +288,10 @@ module "ingress" {
     domain_filters = ["gytis.place"]
   }
   traefik = {
-    dashboard_domain = "traefik.gytis.place"
     acme_email       = "me@gytis.io"
     lb_datacenter    = "fsn1"
     enable_dashboard = true
   }
-}
-
-module "oauth-proxy" {
-  source = "../batteries/oauth2-proxy"
 }
 
 output "talosconfig" {

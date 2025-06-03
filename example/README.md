@@ -88,4 +88,30 @@ terraform output --raw talosconfig > ./talosconfig
 
 Use `kubectl` and `talosctl` with these configs to manage your cluster.
 
+---
 
+## 5. Accessing the Traefik Dashboard
+
+Port-forward the Traefik dashboard to your local machine:
+
+```bash
+NAMESPACE=traefik
+kubectl port-forward $(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name -n $NAMESPACE) 8080:8080 -n $NAMESPACE
+```
+
+Then open [http://localhost:8080](http://localhost:8080) in your browser.
+
+---
+
+## 6. Testing Cloudflare Integration
+
+Edit `./demo.yaml` and replace the hostname with your domain of choice.
+Apply the config:
+
+```bash
+kubectl apply -f ./demo.yaml
+```
+
+After a few minutes, the demo application should be accessible at your specified hostname.
+
+---

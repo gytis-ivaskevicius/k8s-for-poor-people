@@ -103,7 +103,6 @@ resource "helm_release" "autoscaler" {
         maxSize      = np.max_nodes
         minSize      = np.min_nodes
         instanceType = np.server_type
-        region       = np.datacenter
         region       = coalesce(np.datacenter, var.datacenter)
       }
     ]

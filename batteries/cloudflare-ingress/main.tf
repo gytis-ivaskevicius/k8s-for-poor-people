@@ -26,7 +26,6 @@ variable "traefik" {
     enable_dashboard = optional(bool, false)
     lb_datacenter    = string
     acme_email       = string
-    dashboard_domain = optional(string, "traefik.example.com")
   })
 }
 
@@ -43,12 +42,15 @@ resource "kubernetes_secret" "external_dns" {
   type = "kubernetes.io/secret"
 }
 
-module "external_dns" {
-  source        = "../external-dns"
-  namespace     = var.external_dns.namespace
-  chart_version = var.external_dns.version
+resource "helm_release" "external_dns" {
+  name = "external-dns"
 
-  values = merge({
+  repository = "https://kubernetes-sigs.github.io/external-dns/"
+  chart      = "external-dns"
+  namespace  = var.external_dns.namespace
+  version    = var.external_dns.version
+
+  values = [yamlencode(merge({
     provider = {
       name = "cloudflare"
     }
@@ -69,7 +71,7 @@ module "external_dns" {
     domainFilters = var.external_dns.domain_filters
     policy        = "sync"
     txtOwnerId    = var.external_dns.txt_owner_id
-  }, var.external_dns.values)
+  }, var.external_dns.values))]
 }
 
 module "traefik" {
@@ -81,7 +83,6 @@ module "traefik" {
   values               = var.traefik.values
   lb_datacenter        = var.traefik.lb_datacenter
   acme_email           = var.traefik.acme_email
-  dashboard_domain     = var.traefik.dashboard_domain
 }
 
 terraform {

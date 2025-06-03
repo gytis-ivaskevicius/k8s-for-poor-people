@@ -38,7 +38,7 @@ kind: Ingress
 metadata:
   name: whoami
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls.certresolver: le
     external-dns.alpha.kubernetes.io/hostname: whoami.gytis.place
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
