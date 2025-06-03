@@ -2,7 +2,7 @@ variable "workers" {
   description = "Workers definition"
   type = map(object({
     server_type     = string
-    datacenter      = string
+    datacenter      = optional(string)
     labels          = optional(map(string), {})
     count           = optional(number, 1)
     ipv4_enabled    = optional(bool, true)
@@ -101,7 +101,7 @@ locals {
       name            = item.name
       extra_user_data = item.cfg.extra_user_data
       server_type     = item.cfg.server_type
-      datacenter      = item.cfg.datacenter
+      datacenter      = coalesce(item.cfg.datacenter, var.datacenter)
       ipv4_enabled    = item.cfg.ipv4_enabled
       ipv6_enabled    = item.cfg.ipv6_enabled
       image           = substr(item.cfg.server_type, 0, 3) == "cax" ? (var.disable_arm ? null : data.hcloud_image.arm[0].id) : (var.disable_x86 ? null : data.hcloud_image.x86[0].id)
@@ -136,7 +136,7 @@ data "talos_machine_configuration" "worker" {
 
 resource "hcloud_server" "workers" {
   for_each           = { for worker in local.workers : worker.name => worker }
-  datacenter         = each.value.datacenter
+  datacenter         = coalesce(each.value.datacenter, var.datacenter)
   name               = each.value.name
   image              = each.value.image
   server_type        = each.value.server_type

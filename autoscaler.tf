@@ -3,9 +3,9 @@ variable "autoscaler_nodepools" {
   description = "Workers definition. K8s autoscaler will be installed if this map has at least one entry"
   type = map(object({
     server_type     = string
-    datacenter      = string
     min_nodes       = number
     max_nodes       = number
+    datacenter      = optional(string)
     extra_user_data = optional(map(any))
     labels          = optional(map(string), {})
     taints = optional(list(object({
@@ -104,6 +104,7 @@ resource "helm_release" "autoscaler" {
         minSize      = np.min_nodes
         instanceType = np.server_type
         region       = np.datacenter
+        region       = coalesce(np.datacenter, var.datacenter)
       }
     ]
   })]

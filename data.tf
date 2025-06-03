@@ -4,7 +4,7 @@ locals {
 }
 
 data "hcloud_datacenter" "this" {
-  name = var.datacenter_name
+  name = var.datacenter
 }
 
 data "hcloud_location" "this" {

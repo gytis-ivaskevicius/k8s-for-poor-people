@@ -49,7 +49,7 @@ module "talos" {
   talos_version = "v1.9.5"
 
   # $ hcloud datacenter list
-  datacenter_name = "fsn1-dc14"
+  datacenter = "fsn1-dc14"
 
   ####################################################
   # Optional values:                                 #

@@ -34,7 +34,7 @@ variable "cluster_api_host" {
   default     = null
 }
 
-variable "datacenter_name" {
+variable "datacenter" {
   type        = string
   description = <<EOF
     The name of the datacenter where the cluster will be created.
@@ -42,7 +42,7 @@ variable "datacenter_name" {
     Possible values: fsn1-dc14, nbg1-dc3, hel1-dc2, ash-dc1, hil-dc1
   EOF
   validation {
-    condition     = contains(["fsn1-dc14", "nbg1-dc3", "hel1-dc2", "ash-dc1", "hil-dc1"], var.datacenter_name)
+    condition     = contains(["fsn1-dc14", "nbg1-dc3", "hel1-dc2", "ash-dc1", "hil-dc1"], var.datacenter)
     error_message = "Invalid datacenter name."
   }
 }
