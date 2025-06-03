@@ -1,21 +1,23 @@
 variable "hcloud_ccm" {
   description = "Hetzner Cloud Controller Manager"
   type = object({
-    enabled = optional(bool, true)
-    version = optional(string, null)
-    values  = optional(map(any))
+    enabled   = optional(bool, true)
+    version   = optional(string, null)
+    values    = optional(map(any))
+    namespace = optional(string, "kube-system")
   })
   default = {}
 }
 
 resource "helm_release" "hcloud_ccm" {
-  count     = var.hcloud_ccm.enabled ? 1 : 0
-  name      = "hcloud-cloud-controller-manager"
-  namespace = "kube-system"
+  count            = var.hcloud_ccm.enabled ? 1 : 0
+  name             = "hcloud-cloud-controller-manager"
+  repository       = "https://charts.hetzner.cloud"
+  chart            = "hcloud-cloud-controller-manager"
+  version          = var.hcloud_ccm.version
+  namespace        = var.hcloud_ccm.namespace
+  create_namespace = true
 
-  repository = "https://charts.hetzner.cloud"
-  chart      = "hcloud-cloud-controller-manager"
-  version    = var.hcloud_ccm.version
 
   values = [yamlencode(merge({
     networking = {

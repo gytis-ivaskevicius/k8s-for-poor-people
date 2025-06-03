@@ -45,7 +45,7 @@ variable "floating_ip" {
   default     = null
   description = <<EOF
     The Floating IP (ID) to use for the control plane nodes.
-    If null (default), a new floating IP will be created.
+    If `null` (default), a new floating IP will be created.
     (using object because of https://github.com/hashicorp/terraform/issues/26755)
   EOF
 }

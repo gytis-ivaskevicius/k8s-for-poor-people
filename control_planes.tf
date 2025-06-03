@@ -1,5 +1,5 @@
 variable "control_planes" {
-  description = "Control plane definition"
+  description = "Control plane definition. Total control_planes count should be 1, 3 or 5"
   type = map(object({
     server_type     = string
     datacenter      = string

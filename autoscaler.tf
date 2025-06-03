@@ -1,6 +1,6 @@
 
 variable "autoscaler_nodepools" {
-  description = "Workers definition"
+  description = "Workers definition. K8s autoscaler will be installed if this map has at least one entry"
   type = map(object({
     server_type     = string
     datacenter      = string
@@ -15,6 +15,12 @@ variable "autoscaler_nodepools" {
     })), [])
   }))
   default = {}
+}
+
+variable "autoscaler_version" {
+  type        = string
+  default     = null
+  description = "Version of the autoscaler to use. Default is the latest version."
 }
 
 
@@ -68,7 +74,7 @@ resource "helm_release" "autoscaler" {
   repository = "https://kubernetes.github.io/autoscaler"
   chart      = "cluster-autoscaler"
   namespace  = "kube-system"
-  version    = "9.46.6"
+  version    = var.autoscaler_version
   depends_on = [data.http.talos_health, helm_release.cilium]
 
   values = [yamlencode({
