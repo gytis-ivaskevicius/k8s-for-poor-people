@@ -40,16 +40,6 @@ k8s-for-poor-people is a Terraform module that provisions a minimal yet producti
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - [Helm](https://helm.sh/docs/intro/install/)
 
-### Cloud Account
-
-- Hetzner Cloud account with API token (create in Hetzner Cloud Console)
-- Set the API token in environment variable `HCLOUD_TOKEN`
-
-### Optional
-
-- Build custom Talos images with Packer (see `_packer/README.md`)
-- Configure DNS records for your cluster endpoints
-
 ---
 
 ## Getting started
