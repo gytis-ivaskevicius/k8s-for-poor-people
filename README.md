@@ -84,7 +84,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 | <a name="provider_hcloud"></a> [hcloud](#provider\_hcloud) | >= 1.50.1 |
 | <a name="provider_helm"></a> [helm](#provider\_helm) | >= 2.17.0 |
 | <a name="provider_http"></a> [http](#provider\_http) | >= 3.4.5 |
-| <a name="provider_kubernetes"></a> [kubernetes](#provider\_kubernetes) | >= 2.23.0 |
 | <a name="provider_talos"></a> [talos](#provider\_talos) | >= 0.7.1 |
 | <a name="provider_tls"></a> [tls](#provider\_tls) | >= 4.0.6 |
 
@@ -115,7 +114,6 @@ No modules.
 | [helm_release.hcloud_ccm](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
 | [helm_release.hcloud_csi](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
 | [helm_release.prometheus_operator_crds](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
-| [kubernetes_secret.hetzner_api_token](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
 | [talos_cluster_kubeconfig.this](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/resources/cluster_kubeconfig) | resource |
 | [talos_machine_bootstrap.this](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/resources/machine_bootstrap) | resource |
 | [talos_machine_secrets.this](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/resources/machine_secrets) | resource |

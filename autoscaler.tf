@@ -55,18 +55,6 @@ data "talos_machine_configuration" "autoscaler" {
   examples           = false
 }
 
-resource "kubernetes_secret" "hetzner_api_token" {
-  count = length(var.autoscaler_nodepools) > 0 ? 1 : 0
-  metadata {
-    name      = "hetzner-api-token"
-    namespace = "kube-system"
-  }
-
-  data = {
-    token = var.hcloud_token
-  }
-}
-
 resource "helm_release" "autoscaler" {
   count = length(var.autoscaler_nodepools) > 0 ? 1 : 0
   name  = "hetzner-cluster-autoscaler"
@@ -85,8 +73,9 @@ resource "helm_release" "autoscaler" {
 
     extraEnvSecrets = {
       HCLOUD_TOKEN = {
-        name = "hetzner-api-token"
-        key  = "token"
+        name      = "hcloud"
+        namespace = "kube-system"
+        key       = "token"
       }
     }
 
