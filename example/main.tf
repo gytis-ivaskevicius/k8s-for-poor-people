@@ -84,6 +84,10 @@ module "ingress" {
   }
 }
 
+module "oauth-proxy" {
+  source = "../batteries/oauth2-proxy"
+}
+
 output "talosconfig" {
   value     = module.talos.talosconfig
   sensitive = true

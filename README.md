@@ -2,286 +2,200 @@
   <br>
   <img src="https://github.com/hcloud-talos/terraform-hcloud-talos/blob/main/.idea/icon.png?raw=true" alt="Terraform - Hcloud - Talos" width="200"/>
   <h1 style="margin-top: 0; padding-top: 0;">Terraform - Hcloud - Talos</h1>
-  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/hcloud-talos/terraform-hcloud-talos?logo=github">
+  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/gytis-ivaskevicius/terraform-hcloud-k8s-for-poor-people?logo=github">
 </div>
 
 ---
 
-This repository contains a Terraform module for creating a Kubernetes cluster with Talos in the Hetzner Cloud.
+k8s-for-poor-people is a Terraform module that provisions a minimal yet production-capable Kubernetes cluster on Hetzner Cloud. It leverages Talos, a modern, secure, and immutable Linux distribution built for Kubernetes. Designed with simplicity and cost-efficiency in mind, this project offers an easy way to bootstrap your own cluster without breaking the bank.
 
-- Talos is a modern OS for Kubernetes. It is designed to be secure, immutable, and minimal.
-- Hetzner Cloud is a cloud hosting provider with excellent Terraform support and competitive pricing.
 
-> [!WARNING]
-> This module is under active development. Not all features are compatible with each other yet.
-> Known issues are listed in the [Known Issues](#known-issues) section.
-> If you find a bug or have a feature request, please open an issue.
+## Features
+
+- [x] ARM and x86\_64 architecture support
+- [x] Cilium CNI (default)
+- [ ] Kube-router CNI - lightweight Cilium alternative (planned)
+- [x] IPv6 support
+- [x] Traefik Gateway (Ingress + Service Mesh-ready)
+- [ ] Cilium Gateway - native eBPF-powered ingress (planned)
+- [x] HA control plane (1, 3, or 5 Talos-managed nodes)
+- [x] Autoscaling worker nodes
+- [x] Static worker node support (non-autoscaled)
+- [x] Cloudflare integration (DNS, WAF, CDN)
+- [x] Hetzner CSI (persistent block storage support)
+- [x] Hetzner Load Balancer support
+- [ ] Automatic Talos and Kubernetes upgrades (Not tested yet)
+- [ ] Multi-region cluster support (planned)
+- [ ] Grafana Cloud integration for centralized monitoring and alerting
 
 ---
 
-## Goals 🚀
-
-| Goals                                                              | Status | Description                                                                                                                                                                                           |
-|--------------------------------------------------------------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Production ready                                                   | ✅      | All recommendations from the [Talos Production Clusters](https://www.talos.dev/v1.6/introduction/prodnotes/) are implemented. **But you need to read it carefully to understand all implications.**   |
-| Use private networks for the internal communication of the cluster | ✅      | Hetzner Cloud Networks are used for internal node-to-node communication.                                                                                                                              |
-| Secure API Exposure                                                | ✅      | The Kubernetes and Talos APIs are exposed to the public internet but secured via firewall rules. By default (`firewall_use_current_ip = true`), only traffic from your current IP address is allowed. |
-| Possibility to change all CIDRs of the networks                    | ⁉️     | Needs to be tested.                                                                                                                                                                                   |
-| Configure the Cluster optimally to run in the Hetzner Cloud        | ✅      | This includes manual configuration of the network devices and not via DHCP, provisioning of Floating IPs (VIP), etc.                                                                                  |
-
-## Information about the Module
-
-- A lot of information can be found directly in the descriptions of the variables.
-- You can configure the module to create a cluster with 1, 3 or 5 control planes and n workers or only the control
-  planes.
-- It allows scheduling pods on the control planes if no workers are created.
-- It has [Multihoming](https://www.talos.dev/v1.6/introduction/prodnotes/#multihoming) configuration (etcd and kubelet
-  listen on public and private IP).
-- It uses [KubePrism](https://www.talos.dev/v1.6/kubernetes-guides/configuration/kubeprism/)
-  for internal API server access (`127.0.0.1:7445`) from within the cluster nodes.
-- **Public API Endpoint:**
-    - You can define a stable public endpoint for your cluster using the `cluster_api_host` variable (
-      e.g., `kube.mydomain.com`).
-    - If you set `cluster_api_host`, you **must** create a DNS A record for this hostname pointing to the public IP
-      address you want clients to use. This could be:
-        - The Hetzner Floating IP (if `enable_floating_ip = true`).
-        - The IP of an external Load Balancer you configure separately.
-        - The public IP of a specific control plane node (less recommended for multi-node control planes).
-    - The generated `kubeconfig` and `talosconfig` will use this hostname
-      if `output_mode_config_cluster_endpoint = "cluster_endpoint"`.
-- **Internal API Endpoint:**
-    - For internal communication *between cluster nodes*, Talos often uses the hostname `kube.[cluster_domain]` (
-      e.g., `kube.cluster.local`).
-    - If `enable_alias_ip = true` (the default), this module automatically configures `/etc/hosts` entries on each node
-      to resolve `kube.[cluster_domain]` to the *private* alias IP (`10.0.1.100` by default). This ensures reliable
-      internal communication.
-- **Default Behavior (if `cluster_api_host` is not set):**
-    - If you don't set `cluster_api_host`, the generated `kubeconfig` and `talosconfig` will use an IP address directly
-      as the endpoint (controlled by `output_mode_config_cluster_endpoint`, defaulting to the first control plane's
-      public IP).
-    - Internal communication will still use `kube.[cluster_domain]` if `enable_alias_ip = true`.
-
-## Additional installed software in the cluster
-
-### [Cilium](https://cilium.io/)
-
-- Cilium is a modern, efficient, and secure networking and security solution for Kubernetes.
-- [Cilium is used as the CNI](https://www.talos.dev/v1.6/kubernetes-guides/network/deploying-cilium/) instead of the
-  default Flannel.
-- It provides a lot of features like Network Policies, Load Balancing, and more.
-
-> [!IMPORTANT]  
-> The Cilium version (`cilium_version`) has to be compatible with the Kubernetes (`kubernetes_version`) version.
-
-### [Hcloud Cloud Controller Manager](https://github.com/hetznercloud/hcloud-cloud-controller-manager)
-
-- Updates the `Node` objects with information about the server from the Cloud , like instance Type, Location,
-  Datacenter, Server ID, IPs.
-- Cleans up stale `Node` objects when the server is deleted in the API.
-- Routes traffic to the pods through Hetzner Cloud Networks. Removes one layer of indirection.
-- Watches Services with `type: LoadBalancer` and creates Hetzner Cloud Load Balancers for them, adds Kubernetes
-  Nodes as targets for the Load Balancer.
-
-### [Talos Cloud Controller Manager](https://github.com/siderolabs/talos-cloud-controller-manager)
-
-- [Applies labels to the nodes](https://github.com/siderolabs/talos-cloud-controller-manager?tab=readme-ov-file#node-initialize).
-- [Validates and approves node CSRs](https://github.com/siderolabs/talos-cloud-controller-manager?tab=readme-ov-file#node-certificate-approval).
-- In DaemonSet mode: CCM will use hostNetwork and current node to access kubernetes/talos API
-
 ## Prerequisites
 
-### Required Software
+### Software Requirements
 
-- [terraform](https://www.terraform.io/downloads.html)
-- [packer](https://www.packer.io/downloads)
-- [helm](https://helm.sh/docs/intro/install/)
-
-### Recommended Software
-
-- [hcloud cli](https://github.com/hetznercloud/cli)
-- [talosctl](https://www.talos.dev/v1.6/introduction/getting-started/#talosctl)
+- [Terraform](https://www.terraform.io/downloads.html) (>= 1.8.0)
+- [Hetzner CLI (`hcloud`)](https://github.com/hetznercloud/cli) (optional, for manual management)
+- [Talosctl](https://www.talos.dev/v1.6/introduction/getting-started/#talosctl)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+- [Helm](https://helm.sh/docs/intro/install/)
 
-### Hetzner Cloud
+### Cloud Account
 
-> [!TIP]
-> If you don't have a Hetzner account yet, you are welcome to use
-> this [Hetzner Cloud Referral Link](https://hetzner.cloud/?ref=6Q6Q6Q6Q6Q6Q) to claim 20€ credit and support
-> this project.
+- Hetzner Cloud account with API token (create in Hetzner Cloud Console)
+- Set the API token in environment variable `HCLOUD_TOKEN`
 
-- Create a new project in the Hetzner Cloud Console
-- Create a new API token in the project
-- You can store the token in the environment variable `HCLOUD_TOKEN` or use it in the following commands/terraform
-  files.
+### Optional
 
-## Usage
+- Build custom Talos images with Packer (see `_packer/README.md`)
+- Configure DNS records for your cluster endpoints
 
-### 1. Build Talos Images with Packer
+---
 
-Before deploying with Terraform, you need Talos OS images (snapshots) available in your Hetzner Cloud project. This module provides Packer configurations to build these images.
+## Getting started
 
--   **Purpose:** Creates ARM and x86 Talos OS snapshots compatible with Hetzner Cloud.
--   **Location:** All Packer-related files are in the `_packer/` directory.
--   **Authentication:** Requires your Hetzner Cloud API token (set the `HCLOUD_TOKEN` environment variable or enter it when prompted by the build script).
--   **Execution:** Run the `create.sh` script from the root of the repository:
-    ```bash
-    ./_packer/create.sh
-    ```
--   **Customization:** You can build standard Talos images or create custom images with additional system extensions using the Talos Image Factory.
--   **Versioning:** Ensure the `talos_version` used during the Packer build matches the `talos_version` variable set in your Terraform configuration to avoid potential incompatibilities.
+Go to the [example directory](./example) and follow instructions in `README.md`
 
-> **Detailed Instructions:** For comprehensive steps on building default images, using the Image Factory for custom extensions, and managing Talos versions (including how to override the default version), please refer to the **[`_packer/README.md`](_packer/README.md)** file.
-
-### 2. Deploy the Cluster with Terraform
-
-Use the module as shown in the following working minimal example:
-
-> [!NOTE]
-> Actually, your current IP address has to have access to the nodes during the creation of the cluster.
-
-```hcl
-module "talos" {
-  source  = "hcloud-talos/talos/hcloud"
-  # Find the latest version on the Terraform Registry:
-  # https://registry.terraform.io/modules/hcloud-talos/talos/hcloud
-  version = "<latest-version>" # Replace with the latest version number
-
-  talos_version = "v1.9.5" # The version of talos features to use in generated machine configurations
-
-  hcloud_token            = "your-hcloud-token"
-  # If true, the current IP address will be used as the source for the firewall rules.
-  # ATTENTION: to determine the current IP, a request to a public service (https://ipv4.icanhazip.com) is made.
-  # If false, you have to provide your public IP address (as list) in the variable `firewall_kube_api_source` and `firewall_talos_api_source`.
-  firewall_use_current_ip = true
-
-  cluster_name    = "dummy.com"
-  datacenter_name = "fsn1-dc14"
-
-  control_plane_count       = 1
-  control_plane_server_type = "cax11"
-}
-```
-
-Or a more advanced example:
-
-```hcl
-module "talos" {
-  source  = "hcloud-talos/talos/hcloud"
-  # Find the latest version on the Terraform Registry:
-  # https://registry.terraform.io/modules/hcloud-talos/talos/hcloud
-  version = "<latest-version>" # Replace with the latest version number
-
-  # Use versions compatible with each other and supported by the module/Talos
-  talos_version      = "v1.9.5"
-  kubernetes_version = "1.30.3"
-  cilium_version     = "1.16.2"
-
-  hcloud_token = "your-hcloud-token"
-
-  cluster_name     = "dummy.com"
-  cluster_domain   = "cluster.dummy.com.local"
-  cluster_api_host = "kube.dummy.com"
-
-  firewall_use_current_ip   = false
-  firewall_kube_api_source  = ["your-ip"]
-  firewall_talos_api_source = ["your-ip"]
-
-  datacenter_name = "fsn1-dc14"
-
-  control_plane_count       = 3
-  control_plane_server_type = "cax11"
-
-  worker_count       = 3
-  worker_server_type = "cax21"
-
-  network_ipv4_cidr = "10.0.0.0/16"
-  node_ipv4_cidr    = "10.0.1.0/24"
-  pod_ipv4_cidr     = "10.0.16.0/20"
-  service_ipv4_cidr = "10.0.8.0/21"
-}
-```
-
-You need to pipe the outputs of the module:
-
-```hcl
-output "talosconfig" {
-  value     = module.talos.talosconfig
-  sensitive = true
-}
-
-output "kubeconfig" {
-  value     = module.talos.kubeconfig
-  sensitive = true
-}
-```
-
-Then you can then run the following commands to export the kubeconfig and talosconfig:
-
-```bash
-# Save the configs to files
-terraform output --raw kubeconfig > ./kubeconfig
-terraform output --raw talosconfig > ./talosconfig
-```
-
-You can then use `kubectl` and `talosctl` to interact with your cluster.
-Remember to move the generated config files to a persistent location if needed (
-e.g., `~/.kube/config`, `~/.talos/config`).
-
-## Additional Configuration Examples
-
-### Kubelet Extra Args
-
-```hcl
-kubelet_extra_args = {
-  system-reserved            = "cpu=100m,memory=250Mi,ephemeral-storage=1Gi"
-  kube-reserved              = "cpu=100m,memory=200Mi,ephemeral-storage=1Gi"
-  eviction-hard              = "memory.available<100Mi,nodefs.available<10%"
-  eviction-soft              = "memory.available<200Mi,nodefs.available<15%"
-  eviction-soft-grace-period = "memory.available=2m30s,nodefs.available=4m"
-}
-```
-
-### Sysctls Extra Args
-
-```hcl
-sysctls_extra_args = {
-  # Fix for https://github.com/cloudflare/cloudflared/issues/1176
-  "net.core.rmem_default" = "26214400"
-  "net.core.wmem_default" = "26214400"
-  "net.core.rmem_max"     = "26214400"
-  "net.core.wmem_max"     = "26214400"
-}
-```
-
-### Activate Kernel Modules
-
-```hcl
-kernel_modules_to_load = [
-  {
-    name = "binfmt_misc" # Required for QEMU
-  }
-]
-```
+---
 
 ## Known Limitations
 
-- Changes in the `user_data` (e.g. `talos_machine_configuration`) and `image` (e.g. version upgrades with `packer`) will
-  not be applied to existing nodes, because it would force a recreation of the nodes.
+- IPv6 dual-stack is not fully supported by Talos yet.
+- Changes to `user_data` or Talos images require re-provisioning nodes.
+- Some features like IPv6 or KubeSpan may require further testing.
 
-## Known Issues
+---
 
-- IPv6 dual stack is not supported by Talos yet. You can activate IPv6 with `enable_ipv6`, but it currently has no
-  effect on the cluster's internal networking configuration provided by this module.
-- Setting `enable_kube_span = true` might prevent the cluster from reaching a ready state in some configurations.
-  Further investigation is needed.
-- `403 Forbidden user` in startup log: This is a known issue related to rate limiting or IP blocking
-  by `registry.k8s.io` affecting some Hetzner IP ranges.
-  See [#46](https://github.com/hcloud-talos/terraform-hcloud-talos/issues/46)
-  and [registry.k8s.io #138](https://github.com/kubernetes/registry.k8s.io/issues/138).
+## License
 
-## Credits
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-- [kube-hetzner](https://github.com/kube-hetzner/terraform-hcloud-kube-hetzner) For the inspiration and the great
-  terraform module. This module is based on many ideas and code snippets from kube-hetzner.
-- [Talos](https://www.talos.dev/) For the incredible OS.
-- [Hetzner Cloud](https://www.hetzner.com/cloud) For the great cloud hosting.
+
+# Terraform docs
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >=1.8.0 |
+| <a name="requirement_hcloud"></a> [hcloud](#requirement\_hcloud) | >= 1.50.1 |
+| <a name="requirement_helm"></a> [helm](#requirement\_helm) | >= 2.17.0 |
+| <a name="requirement_http"></a> [http](#requirement\_http) | >= 3.4.5 |
+| <a name="requirement_kubectl"></a> [kubectl](#requirement\_kubectl) | >= 2.1.3 |
+| <a name="requirement_kubernetes"></a> [kubernetes](#requirement\_kubernetes) | >= 2.23.0 |
+| <a name="requirement_talos"></a> [talos](#requirement\_talos) | >= 0.7.1 |
+| <a name="requirement_tls"></a> [tls](#requirement\_tls) | >= 4.0.6 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| <a name="provider_hcloud"></a> [hcloud](#provider\_hcloud) | >= 1.50.1 |
+| <a name="provider_helm"></a> [helm](#provider\_helm) | >= 2.17.0 |
+| <a name="provider_http"></a> [http](#provider\_http) | >= 3.4.5 |
+| <a name="provider_kubernetes"></a> [kubernetes](#provider\_kubernetes) | >= 2.23.0 |
+| <a name="provider_talos"></a> [talos](#provider\_talos) | >= 0.7.1 |
+| <a name="provider_tls"></a> [tls](#provider\_tls) | >= 4.0.6 |
+
+## Modules
+
+No modules.
+
+## Resources
+
+| Name | Type |
+|------|------|
+| [hcloud_firewall.this](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/firewall) | resource |
+| [hcloud_floating_ip.control_plane_ipv4](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/floating_ip) | resource |
+| [hcloud_floating_ip_assignment.this](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/floating_ip_assignment) | resource |
+| [hcloud_network.this](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/network) | resource |
+| [hcloud_network_subnet.nodes](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/network_subnet) | resource |
+| [hcloud_placement_group.control_plane](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/placement_group) | resource |
+| [hcloud_placement_group.worker](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/placement_group) | resource |
+| [hcloud_primary_ip.control_plane_ipv4](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/primary_ip) | resource |
+| [hcloud_primary_ip.control_plane_ipv6](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/primary_ip) | resource |
+| [hcloud_primary_ip.worker_ipv4](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/primary_ip) | resource |
+| [hcloud_primary_ip.worker_ipv6](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/primary_ip) | resource |
+| [hcloud_server.control_planes](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/server) | resource |
+| [hcloud_server.workers](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/server) | resource |
+| [hcloud_ssh_key.this](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/resources/ssh_key) | resource |
+| [helm_release.autoscaler](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
+| [helm_release.cilium](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
+| [helm_release.hcloud_ccm](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
+| [helm_release.hcloud_csi](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
+| [helm_release.prometheus_operator_crds](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
+| [kubernetes_secret.hetzner_api_token](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret) | resource |
+| [talos_cluster_kubeconfig.this](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/resources/cluster_kubeconfig) | resource |
+| [talos_machine_bootstrap.this](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/resources/machine_bootstrap) | resource |
+| [talos_machine_secrets.this](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/resources/machine_secrets) | resource |
+| [tls_private_key.ssh_key](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) | resource |
+| [hcloud_datacenter.this](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/data-sources/datacenter) | data source |
+| [hcloud_floating_ip.control_plane_ipv4](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/data-sources/floating_ip) | data source |
+| [hcloud_image.arm](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/data-sources/image) | data source |
+| [hcloud_image.x86](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/data-sources/image) | data source |
+| [hcloud_location.this](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs/data-sources/location) | data source |
+| [http_http.talos_health](https://registry.terraform.io/providers/hashicorp/http/latest/docs/data-sources/http) | data source |
+| [talos_client_configuration.this](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/data-sources/client_configuration) | data source |
+| [talos_machine_configuration.autoscaler](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/data-sources/machine_configuration) | data source |
+| [talos_machine_configuration.control_plane](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/data-sources/machine_configuration) | data source |
+| [talos_machine_configuration.worker](https://registry.terraform.io/providers/siderolabs/talos/latest/docs/data-sources/machine_configuration) | data source |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_allow_scheduling_on_control_planes"></a> [allow\_scheduling\_on\_control\_planes](#input\_allow\_scheduling\_on\_control\_planes) | If true, the control plane nodes will be allowed to schedule pods. | `bool` | `true` | no |
+| <a name="input_autoscaler_nodepools"></a> [autoscaler\_nodepools](#input\_autoscaler\_nodepools) | Workers definition | <pre>map(object({<br/>    server_type     = string<br/>    datacenter      = string<br/>    min_nodes       = number<br/>    max_nodes       = number<br/>    extra_user_data = optional(map(any))<br/>    labels          = optional(map(string), {})<br/>    taints = optional(list(object({<br/>      key    = string<br/>      value  = string<br/>      effect = string<br/>    })), [])<br/>  }))</pre> | `{}` | no |
+| <a name="input_cilium"></a> [cilium](#input\_cilium) | Cilium configuration. Service Monitor requires monitoring.coreos.com/v1 CRDs. | <pre>object({<br/>    enabled                 = optional(bool, true)<br/>    version                 = optional(string, null)<br/>    values                  = optional(map(any))<br/>    enable_encryption       = optional(bool, false)<br/>    enable_service_monitors = optional(bool, false)<br/>  })</pre> | `{}` | no |
+| <a name="input_cluster_api_host"></a> [cluster\_api\_host](#input\_cluster\_api\_host) | Optional. A stable DNS hostname for the public Kubernetes API endpoint (e.g., `kube.mydomain.com`).<br/>    If set, you MUST configure a DNS A record for this hostname pointing to your desired public entrypoint (e.g., Floating IP, Load Balancer IP).<br/>    This hostname will be embedded in the cluster's certificates (SANs).<br/>    If not set, the generated kubeconfig/talosconfig will use an IP address based on `output_mode_config_cluster_endpoint`.<br/>    Internal cluster communication often uses `kube.[cluster_domain]`, which is handled automatically via /etc/hosts if `enable_alias_ip = true`. | `string` | `null` | no |
+| <a name="input_cluster_domain"></a> [cluster\_domain](#input\_cluster\_domain) | The domain name of the cluster. | `string` | `"cluster.local"` | no |
+| <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | The name of the cluster. | `string` | n/a | yes |
+| <a name="input_cluster_prefix"></a> [cluster\_prefix](#input\_cluster\_prefix) | Prefix Hetzner Cloud resources with the cluster name. | `bool` | `false` | no |
+| <a name="input_control_planes"></a> [control\_planes](#input\_control\_planes) | Control plane definition | <pre>map(object({<br/>    server_type     = string<br/>    datacenter      = string<br/>    labels          = optional(map(string), {})<br/>    count           = optional(number, 1)<br/>    ipv4_enabled    = optional(bool, true)<br/>    ipv6_enabled    = optional(bool, false)<br/>    extra_user_data = optional(map(any))<br/>  }))</pre> | `{}` | no |
+| <a name="input_datacenter_name"></a> [datacenter\_name](#input\_datacenter\_name) | The name of the datacenter where the cluster will be created.<br/>    This is used to determine the region and zone of the cluster and network.<br/>    Possible values: fsn1-dc14, nbg1-dc3, hel1-dc2, ash-dc1, hil-dc1 | `string` | n/a | yes |
+| <a name="input_deploy_prometheus_operator_crds"></a> [deploy\_prometheus\_operator\_crds](#input\_deploy\_prometheus\_operator\_crds) | If true, the Prometheus Operator CRDs will be deployed. | `bool` | `false` | no |
+| <a name="input_disable_arm"></a> [disable\_arm](#input\_disable\_arm) | If true, arm images will not be used. | `bool` | `false` | no |
+| <a name="input_disable_talos_coredns"></a> [disable\_talos\_coredns](#input\_disable\_talos\_coredns) | If true, the CoreDNS delivered by Talos will not be deployed. | `bool` | `false` | no |
+| <a name="input_disable_x86"></a> [disable\_x86](#input\_disable\_x86) | If true, x86 images will not be used. | `bool` | `false` | no |
+| <a name="input_enable_alias_ip"></a> [enable\_alias\_ip](#input\_enable\_alias\_ip) | If true, a private alias IP (defaulting to the .100 address within `node_ipv4_cidr`) will be configured on the control plane nodes.<br/>    This enables a stable internal IP for the Kubernetes API server, reachable via `kube.[cluster_domain]`.<br/>    The module automatically configures `/etc/hosts` on nodes to resolve `kube.[cluster_domain]` to this alias IP. | `bool` | `true` | no |
+| <a name="input_enable_floating_ip"></a> [enable\_floating\_ip](#input\_enable\_floating\_ip) | If true, a floating IP will be created and assigned to the control plane nodes. | `bool` | `false` | no |
+| <a name="input_enable_ipv6"></a> [enable\_ipv6](#input\_enable\_ipv6) | If true, the servers will have an IPv6 address.<br/>    IPv4/IPv6 dual-stack is actually not supported, it keeps being an IPv4 single stack. PRs welcome! | `bool` | `false` | no |
+| <a name="input_enable_kube_span"></a> [enable\_kube\_span](#input\_enable\_kube\_span) | If true, the KubeSpan Feature (with "Kubernetes registry" mode) will be enabled. | `bool` | `false` | no |
+| <a name="input_extraManifests"></a> [extraManifests](#input\_extraManifests) | Additional manifests URL applied during Talos bootstrap. | `list(string)` | `null` | no |
+| <a name="input_extra_firewall_rules"></a> [extra\_firewall\_rules](#input\_extra\_firewall\_rules) | Additional firewall rules to apply to the cluster. | `list(any)` | `[]` | no |
+| <a name="input_firewall_kube_api_source"></a> [firewall\_kube\_api\_source](#input\_firewall\_kube\_api\_source) | Source networks that have Kube API access to the servers.<br/>    If null (default), the all traffic is blocked. | `list(string)` | `null` | no |
+| <a name="input_firewall_talos_api_source"></a> [firewall\_talos\_api\_source](#input\_firewall\_talos\_api\_source) | Source networks that have Talos API access to the servers.<br/>    If null (default), the all traffic is blocked. | `list(string)` | `null` | no |
+| <a name="input_floating_ip"></a> [floating\_ip](#input\_floating\_ip) | The Floating IP (ID) to use for the control plane nodes.<br/>    If null (default), a new floating IP will be created.<br/>    (using object because of https://github.com/hashicorp/terraform/issues/26755) | <pre>object({<br/>    id = number,<br/>  })</pre> | `null` | no |
+| <a name="input_hcloud_ccm"></a> [hcloud\_ccm](#input\_hcloud\_ccm) | Hetzner Cloud Controller Manager | <pre>object({<br/>    enabled = optional(bool, true)<br/>    version = optional(string, null)<br/>    values  = optional(map(any))<br/>  })</pre> | `{}` | no |
+| <a name="input_hcloud_csi"></a> [hcloud\_csi](#input\_hcloud\_csi) | Hetzner Cloud CSI | <pre>object({<br/>    enabled = optional(bool, true)<br/>    version = optional(string, null)<br/>    values  = optional(map(any))<br/>  })</pre> | `{}` | no |
+| <a name="input_hcloud_token"></a> [hcloud\_token](#input\_hcloud\_token) | The Hetzner Cloud API token. | `string` | n/a | yes |
+| <a name="input_kernel_modules_to_load"></a> [kernel\_modules\_to\_load](#input\_kernel\_modules\_to\_load) | List of kernel modules to load. | <pre>list(object({<br/>    name       = string<br/>    parameters = optional(list(string))<br/>  }))</pre> | `null` | no |
+| <a name="input_kube_api_extra_args"></a> [kube\_api\_extra\_args](#input\_kube\_api\_extra\_args) | Additional arguments to pass to the kube-apiserver. | `map(string)` | `{}` | no |
+| <a name="input_kubelet_extra_args"></a> [kubelet\_extra\_args](#input\_kubelet\_extra\_args) | Additional arguments to pass to kubelet. | `map(string)` | `{}` | no |
+| <a name="input_kubernetes_version"></a> [kubernetes\_version](#input\_kubernetes\_version) | The Kubernetes version to use. If not set, the latest version supported by Talos is used: https://www.talos.dev/v1.7/introduction/support-matrix/<br/>    Needs to be compatible with the `cilium_version`: https://docs.cilium.io/en/stable/network/kubernetes/compatibility/ | `string` | `"1.30.3"` | no |
+| <a name="input_network_ipv4_cidr"></a> [network\_ipv4\_cidr](#input\_network\_ipv4\_cidr) | The main network cidr that all subnets will be created upon. | `string` | `"10.0.0.0/16"` | no |
+| <a name="input_node_ipv4_cidr"></a> [node\_ipv4\_cidr](#input\_node\_ipv4\_cidr) | Node CIDR, used for the nodes (control plane and worker nodes) in the cluster. | `string` | `"10.0.1.0/24"` | no |
+| <a name="input_output_mode_config_cluster_endpoint"></a> [output\_mode\_config\_cluster\_endpoint](#input\_output\_mode\_config\_cluster\_endpoint) | Configure which endpoint address is written into the generated `talosconfig` and `kubeconfig` files.<br/>    - `public_ip`: Use the public IP of the first control plane (or the Floating IP if enabled).<br/>    - `private_ip`: Use the private IP of the first control plane (or the private Alias IP if enabled). Useful if accessing only via VPN/private network.<br/>    - `cluster_endpoint`: Use the hostname defined in `cluster_api_host`. Requires `cluster_api_host` to be set. | `string` | `"public_ip"` | no |
+| <a name="input_pod_ipv4_cidr"></a> [pod\_ipv4\_cidr](#input\_pod\_ipv4\_cidr) | Pod CIDR, used for the pods in the cluster. | `string` | `"10.0.16.0/20"` | no |
+| <a name="input_registries"></a> [registries](#input\_registries) | List of registry mirrors to use.<br/>    Example:<pre>registries = {<br/>      mirrors = {<br/>        "docker.io" = {<br/>          endpoints = [<br/>            "http://localhost:5000",<br/>            "https://docker.io"<br/>          ]<br/>        }<br/>      }<br/>    }</pre>https://www.talos.dev/v1.6/reference/configuration/v1alpha1/config/#Config.machine.registries | <pre>object({<br/>    mirrors = optional(map(object({<br/>      endpoints    = list(string)<br/>      overridePath = optional(bool)<br/>    })))<br/>    config = optional(map(object({<br/>      auth = object({<br/>        username      = optional(string)<br/>        password      = optional(string)<br/>        auth          = optional(string)<br/>        identityToken = optional(string)<br/>      })<br/>    })))<br/>  })</pre> | `null` | no |
+| <a name="input_service_ipv4_cidr"></a> [service\_ipv4\_cidr](#input\_service\_ipv4\_cidr) | Service CIDR, used for the services in the cluster. | `string` | `"10.0.8.0/21"` | no |
+| <a name="input_ssh_public_key"></a> [ssh\_public\_key](#input\_ssh\_public\_key) | The public key to be set in the servers. It is not used in any way.<br/>    If you don't set it, a dummy key will be generated and used.<br/>    Unfortunately, it is still required, otherwise the Hetzner will sen E-Mails with login credentials. | `string` | `null` | no |
+| <a name="input_sysctls_extra_args"></a> [sysctls\_extra\_args](#input\_sysctls\_extra\_args) | Additional sysctls to set. | `map(string)` | `{}` | no |
+| <a name="input_talos_version"></a> [talos\_version](#input\_talos\_version) | The version of talos features to use in generated machine configurations. | `string` | n/a | yes |
+| <a name="input_workers"></a> [workers](#input\_workers) | Workers definition | <pre>map(object({<br/>    server_type     = string<br/>    datacenter      = string<br/>    labels          = optional(map(string), {})<br/>    count           = optional(number, 1)<br/>    ipv4_enabled    = optional(bool, true)<br/>    ipv6_enabled    = optional(bool, false)<br/>    extra_user_data = optional(map(any))<br/>  }))</pre> | `{}` | no |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| <a name="output_hetzner_network_id"></a> [hetzner\_network\_id](#output\_hetzner\_network\_id) | Network ID of the network created at cluster creation |
+| <a name="output_kubeconfig"></a> [kubeconfig](#output\_kubeconfig) | n/a |
+| <a name="output_kubeconfig_data"></a> [kubeconfig\_data](#output\_kubeconfig\_data) | Structured kubeconfig data to supply to other providers |
+| <a name="output_public_ipv4_list"></a> [public\_ipv4\_list](#output\_public\_ipv4\_list) | List of public IPv4 addresses of all control plane nodes |
+| <a name="output_talos_client_configuration"></a> [talos\_client\_configuration](#output\_talos\_client\_configuration) | n/a |
+| <a name="output_talos_machine_configurations_control_plane"></a> [talos\_machine\_configurations\_control\_plane](#output\_talos\_machine\_configurations\_control\_plane) | n/a |
+| <a name="output_talos_machine_configurations_worker"></a> [talos\_machine\_configurations\_worker](#output\_talos\_machine\_configurations\_worker) | n/a |
+| <a name="output_talos_worker_ids"></a> [talos\_worker\_ids](#output\_talos\_worker\_ids) | Server IDs of the hetzner talos workers machines |
+| <a name="output_talosconfig"></a> [talosconfig](#output\_talosconfig) | n/a |
+<!-- END_TF_DOCS -->

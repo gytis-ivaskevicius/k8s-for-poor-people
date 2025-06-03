@@ -38,6 +38,7 @@
               talosctl
               nixpkgs-fmt
               tflint
+              terraform-docs
             ];
 
             commands = [
@@ -47,6 +48,16 @@
                 '';
                 name = "tf-example";
                 help = "Run Terraform example";
+              }
+              {
+                package = pkgs.writeShellScriptBin "update-tf-docs" ''
+                  terraform-docs markdown table $PRJ_ROOT --output-file $PRJ_ROOT/README.md --output-mode inject
+                  terraform-docs markdown table $PRJ_ROOT/batteries/cloudflare-ingress --output-file $PRJ_ROOT/batteries/cloudflare-ingress/README.md --output-mode inject
+                  terraform-docs markdown table $PRJ_ROOT/batteries/external-dns --output-file $PRJ_ROOT/batteries/external-dns/README.md --output-mode inject
+                  terraform-docs markdown table $PRJ_ROOT/batteries/traefik --output-file $PRJ_ROOT/batteries/traefik/README.md --output-mode inject
+                '';
+                name = "update-tf-docs";
+                help = "Update terraform docs";
               }
             ];
           };
